@@ -1,0 +1,85 @@
+#cloud-config
+package_update: true
+write_files:
+  - path: /etc/moonriver/moonriver-iptables-setup
+    permissions: 744
+    owner: root
+    content: |
+      #!/bin/bash
+      iptables -w -A INPUT -p tcp --dport 30333 -j ACCEPT
+      iptables -w -A INPUT -p tcp --dport 30334 -j ACCEPT
+      iptables -w -A INPUT -p tcp --dport 9615 -j ACCEPT
+      iptables -w -A INPUT -p tcp --dport 9616 -j ACCEPT
+      iptables -w -A INPUT -p tcp --dport 9933 -j ACCEPT
+      iptables -w -A INPUT -p tcp --dport 9934 -j ACCEPT
+      iptables -w -A INPUT -p tcp --dport 9944 -j ACCEPT
+      iptables -w -A INPUT -p tcp --dport 9945 -j ACCEPT
+      iptables -w -A INPUT -p tcp --dport 9100 -j ACCEPT
+  - path: /etc/systemd/system/moonriver-firewall.service
+    permissions: 644
+    owner: root
+    content: |
+      [Unit]
+      Description=moonriver Firewall Setup
+      After=iptables-setup.service
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/etc/moonriver/moonriver-iptables-setup
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/docker/daemon.json
+    content: |
+      {
+        "log-driver": "gcplogs",
+        "live-restore": true,
+        "storage-driver": "overlay2",
+        "mtu": 1460
+      }
+  - path: /etc/systemd/system/node-exporter.service
+    permissions: 644
+    owner: root
+    content: |
+      [Unit]
+      Description=Node Metrics Exporter
+      Requires=docker.service
+      After=network-online.target docker.service
+      [Service]
+      TimeoutStopSec=1m
+      RestartSec=5s
+      Restart=always
+      ExecStart=docker run --rm -p 9100:9100 prom/node-exporter:v1.3.1
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/supervisor/conf.d/moonriver.conf
+    permissions: "0644"
+    owner: root
+    content: |
+      [program:moonriver]
+      command=/var/lib/moonriver-data/moonbeam --port 30333 --rpc-port 9933 --ws-port 9944 --execution wasm --wasm-execution compiled --state-pruning=archive --trie-cache-size 0 --db-cache 2048 --unsafe-ws-external  --rpc-methods=safe --rpc-cors=all --base-path /var/lib/moonriver-data --chain moonriver --name "moonriver_dev"
+      directory=/home/moonriver
+      autostart=true
+      autorestart=true
+      startretries=3
+      stderr_logfile=/var/log/moonriver/moonriver.log
+      stdout_logfile=/var/log/moonriver/moonriver.log
+      user=root
+      group=root
+      [program:moonriver-b]
+      command=/var/lib/moonriver-data/moonbeam --port 30334 --rpc-port 9934 --ws-port 9945 --execution wasm --name="test-dev-relay"
+      directory=/home/moonriver
+      autostart=true
+      autorestart=true
+      startretries=3
+      stderr_logfile=/var/log/moonriver/moonriver.log
+      stdout_logfile=/var/log/moonriver/moonriver.log
+      user=root
+      group=root
+runcmd:
+  - mkdir -p /var/log/moonriver
+
+  - systemctl daemon-reload
+  - systemctl restart docker
+  - systemctl start moonriver-firewall.service
+  - systemctl start node-exporter.service
+  - systemctl enable moonriver.service

@@ -1,0 +1,85 @@
+#cloud-config
+package_update: true
+write_files:
+  - path: /etc/moonbase/moonbase-iptables-setup
+    permissions: 744
+    owner: root
+    content: |
+      #!/bin/bash
+      iptables -w -A INPUT -p tcp --dport 30333 -j ACCEPT
+      iptables -w -A INPUT -p tcp --dport 30334 -j ACCEPT
+      iptables -w -A INPUT -p tcp --dport 9615 -j ACCEPT
+      iptables -w -A INPUT -p tcp --dport 9616 -j ACCEPT
+      iptables -w -A INPUT -p tcp --dport 9933 -j ACCEPT
+      iptables -w -A INPUT -p tcp --dport 9934 -j ACCEPT
+      iptables -w -A INPUT -p tcp --dport 9944 -j ACCEPT
+      iptables -w -A INPUT -p tcp --dport 9945 -j ACCEPT
+      iptables -w -A INPUT -p tcp --dport 9100 -j ACCEPT
+  - path: /etc/systemd/system/moonbase-firewall.service
+    permissions: 644
+    owner: root
+    content: |
+      [Unit]
+      Description=moonbase Firewall Setup
+      After=iptables-setup.service
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/etc/moonbase/moonbase-iptables-setup
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/docker/daemon.json
+    content: |
+      {
+        "log-driver": "gcplogs",
+        "live-restore": true,
+        "storage-driver": "overlay2",
+        "mtu": 1460
+      }
+  - path: /etc/systemd/system/node-exporter.service
+    permissions: 644
+    owner: root
+    content: |
+      [Unit]
+      Description=Node Metrics Exporter
+      Requires=docker.service
+      After=network-online.target docker.service
+      [Service]
+      TimeoutStopSec=1m
+      RestartSec=5s
+      Restart=always
+      ExecStart=docker run --rm -p 9100:9100 prom/node-exporter:v1.3.1
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/supervisor/conf.d/moonbase.conf
+    permissions: "0644"
+    owner: root
+    content: |
+      [program:moonbase]
+      command=/var/lib/alphanet-data/moonbeam --port 30333 --rpc-port 9933 --ws-port 9944 --execution wasm --wasm-execution compiled --state-pruning=archive --trie-cache-size 0 --db-cache 2048 --base-path /var/lib/alphanet-data --chain alphanet --name "moonbase_dev"
+      directory=/home/moonbase
+      autostart=true
+      autorestart=true
+      startretries=3
+      stderr_logfile=/var/log/moonbase/moonbase.log
+      stdout_logfile=/var/log/moonbase/moonbase.log
+      user=root
+      group=root
+      [program:moonbase-b]
+      command=/var/lib/alphanet-data/moonbeam --port 30334 --rpc-port 9934 --ws-port 9945 --execution wasm --name="test-moonbase-relay"
+      directory=/home/moonbase
+      autostart=true
+      autorestart=true
+      startretries=3
+      stderr_logfile=/var/log/moonbase/moonbase.log
+      stdout_logfile=/var/log/moonbase/moonbase.log
+      user=root
+      group=root
+runcmd:
+  - mkdir -p /var/log/moonbase
+
+  - systemctl daemon-reload
+  - systemctl restart docker
+  - systemctl start moonbase-firewall.service
+  - systemctl start node-exporter.service
+  - systemctl enable moonbase.service

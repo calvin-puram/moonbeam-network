@@ -1,0 +1,44 @@
+---
+- name: Install dependencies
+  become_user: root
+  become: true
+  apt:
+    force_apt_get: yes
+    update_cache: yes
+    pkg:
+      - curl
+      - wget
+      - supervisor
+
+- name: Create Moonriver System Group
+  become_user: root
+  become: true
+  group:
+    name: moonriver
+    state: present
+    system: true
+
+- name: Add Moonriver User
+  become: true
+  user:
+    name: moonriver
+    groups:
+      - moonriver
+      - sudo
+    state: present
+    system: yes
+    createhome: true
+    home: "/home/moonriver"
+
+- name: Download Moonriver Binary
+  become: true
+  shell: |
+    wget https://github.com/PureStake/moonbeam/releases/download/{{moonriver_version}}/moonbeam
+    chmod +x moonbeam
+    mkdir /var/lib/moonriver-data
+    mv ./moonbeam /var/lib/moonriver-data
+    sudo chown -R moonriver /var/lib/moonriver-data
+
+
+
+

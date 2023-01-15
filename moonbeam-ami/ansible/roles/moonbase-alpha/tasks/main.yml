@@ -1,0 +1,44 @@
+---
+- name: Install dependencies
+  become_user: root
+  become: true
+  apt:
+    force_apt_get: yes
+    update_cache: yes
+    pkg:
+      - curl
+      - wget
+      - supervisor
+
+- name: Create Moonbase System Group
+  become_user: root
+  become: true
+  group:
+    name: moonbase
+    state: present
+    system: true
+
+- name: Add Moonbase User
+  become: true
+  user:
+    name: moonbase
+    groups:
+      - moonbase
+      - sudo
+    state: present
+    system: yes
+    createhome: true
+    home: "/home/moonbase"
+
+- name: Download Moonbase Alpha Binary
+  become: true
+  shell: |
+    wget https://github.com/PureStake/moonbeam/releases/download/{{moonbase_version}}/moonbeam
+    chmod +x moonbeam
+    mkdir /var/lib/alphanet-data
+    mv ./moonbeam /var/lib/alphanet-data
+    sudo chown -R moonbase /var/lib/alphanet-data
+
+
+
+

@@ -1,0 +1,7 @@
+- name: moonbase Alpha binary
+  become_user: root
+  hosts: all
+  vars:
+    - moonbase_version: "v0.28.1"
+  roles:
+    - moonbase-alpha

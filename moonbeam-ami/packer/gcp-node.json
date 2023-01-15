@@ -1,0 +1,36 @@
+{
+  "builders": [
+    {
+      "metadata": {
+        "enable-oslogin": "FALSE"
+      },
+      "image_description": "Moonbeam Image",
+      "image_name": "moonbeam-v1",
+      "project_id": "project",
+      "service_account_email": "packer-build@project.iam.gserviceaccount.com",
+      "source_image": "ubuntu-2004-focal-v20210415",
+      "ssh_username": "ubuntu",
+      "network": "default",
+      "subnetwork": "default",
+      "tags": "packer",
+      "type": "googlecompute",
+      "zone": "us-central1-a"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "ansible",
+      "user": "ubuntu",
+      "playbook_file": "../ansible/main.yml",
+      "ansible_ssh_extra_args": [
+        "-oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedKeyTypes=+ssh-rsa"
+      ]
+    }
+  ],
+  "post-processors": [
+    {
+      "type": "manifest",
+      "output": "packer-manifest.json"
+    }
+  ]
+}

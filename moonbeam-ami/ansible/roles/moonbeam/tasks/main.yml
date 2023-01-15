@@ -1,0 +1,46 @@
+---
+- name: Install dependencies
+  become_user: root
+  become: true
+  apt:
+    force_apt_get: yes
+    update_cache: yes
+    pkg:
+      - curl
+      - wget
+      - supervisor
+
+- name: Create Moonbeam System Group
+  become_user: root
+  become: true
+  group:
+    name: moonbeam
+    state: present
+    system: true
+
+- name: Add Moonbeam User
+  become: true
+  user:
+    name: moonbeam
+    groups:
+      - moonbeam
+      - sudo
+    state: present
+    system: yes
+    createhome: true
+    home: "/home/moonbeam"
+
+- name: Download Moonbeam
+  become: true
+  shell: |
+    wget https://github.com/PureStake/moonbeam/releases/download/{{moonbeam_version}}/moonbeam
+    chmod +x moonbeam
+    mkdir /var/lib/moonbeam-data
+    mv ./moonbeam /var/lib/moonbeam-data
+    sudo chown -R moonbeam /var/lib/moonbeam-data
+
+
+# - name: Moonbeam check
+#   become_user: moonbeam
+#   shell: sha256sum /var/moonbeam
+

@@ -1,0 +1,7 @@
+- name: moonbeam binary
+  become_user: root
+  hosts: all
+  vars:
+    - moonbeam_version: "v0.27.2"
+  roles:
+    - moonbeam

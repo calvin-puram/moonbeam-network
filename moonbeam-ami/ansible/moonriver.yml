@@ -1,0 +1,7 @@
+- name: moonriver binary
+  become_user: root
+  hosts: all
+  vars:
+    - moonriver_version: "v0.28.1"
+  roles:
+    - moonriver
